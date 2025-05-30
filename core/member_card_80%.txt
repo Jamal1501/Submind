@@ -1,0 +1,435 @@
+<div class="card-container">
+  <div class="card" id="memberCard">
+    <!-- FRONT -->
+    <div class="card-face front shine">
+      <img src="https://cdn.shopify.com/s/files/1/0570/0222/9931/files/MembersCard_Front_Watermark.png?v=1745239281" class="watermark">
+      <img src="https://cdn.shopify.com/s/files/1/0570/0222/9931/files/MembersCard_Front_Logo.png?v=1745239281" class="logo">
+      <img src="https://cdn.shopify.com/s/files/1/0570/0222/9931/files/MembersCard_Front_Amor.png?v=1745239281" class="angel">
+      <img src="https://cdn.shopify.com/s/files/1/0570/0222/9931/files/MembersCard_Front_MemberSince.png?v=1745239281" class="member-since-label">
+      <div class="member-topic">{{ customer.tags | first }}</div>
+      <div class="member-name">{{ customer.name }}</div>
+      <div class="member-year">{{ customer.created_at | date: "%Y" }}</div>
+    </div>
+
+    <!-- BACK -->
+    <div class="card-face back shine">
+      <img src="https://cdn.shopify.com/s/files/1/0570/0222/9931/files/MembersCard_Back_watermark.png?v=1745239288" class="back-watermark">
+      <img src="https://cdn.shopify.com/s/files/1/0570/0222/9931/files/MembersCard_Back_Heart.png?v=1745239288" class="back-image">
+      <img src="https://cdn.shopify.com/s/files/1/0570/0222/9931/files/MembersCard_Back_Fusszeile.png?v=1745239288" class="back-footer">
+      <img src="https://cdn.shopify.com/s/files/1/0570/0222/9931/files/MembersCard_Back_EXP.png?v=1745239287" class="expiry-label">
+      <div class="member-id">{{ customer.id }}</div>
+      <div class="member-expiry">{{ customer.created_at | date: "%m/%Y" }}</div>
+    </div>
+  </div>
+  
+ 
+    <div id="cardBenefits" class="card-benefits">
+  <h2>Membership <br>Benefits</h2>
+  <p>• Priority access to drops<br>
+     • Private Wrongchild events<br>
+     • Free shipping worldwide<br>
+     • Exclusive content &amp; rewards</p>
+</div>
+  <div id="member-info" class="member-info-container"></div>
+  </div>
+
+
+<style>
+  .card-container {
+    perspective: 1500px;
+    width: 320px;
+    margin: 100px auto;
+    padding: 20px;
+    position: relative;
+  }
+
+  .card {
+    width: 100%;
+    height: 185px;
+    transform-style: preserve-3d;
+    transition: transform 0.6s ease-out;
+    position: relative;
+    cursor: pointer;
+  }
+
+  .card-face {
+    position: absolute;
+    width: 100%;
+    height: 185px;
+    backface-visibility: hidden;
+    border-radius: 7px;
+    border: solid 2px #888;
+    overflow: hidden;
+    background: linear-gradient(145deg, #000, #111);
+    box-shadow: 0 0px 5px 5px rgba(0,0,0,0.5 );
+  }
+
+  .front {
+    z-index: 2;
+  }
+
+  .back {
+    transform: rotateY(180deg);
+  }
+
+  /* Improved shine effect */
+  .card-face.shine::before {
+    content: '';
+    position: absolute;
+    top: -150%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+      120deg, 
+      transparent 30%, 
+      rgba(255,255,255,0.1) 45%, 
+      rgba(255,255,255,0.3) 50%, 
+      rgba(255,255,255,0.1) 55%, 
+      transparent 70%
+    );
+    transform: rotate(25deg);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.5s ease-out;
+    z-index: 10;
+  }
+
+  /* Shine effect shown on scroll */
+  .card-container.scroll-active .card-face.shine::before {
+    opacity: 1;
+    animation: shine 2s forwards;
+  }
+
+  @keyframes shine {
+    0% { top: -150%; }
+    100% { top: 150%; }
+  }
+
+  /* Positioning of elements on the card */
+  .logo, .angel, .watermark, .member-since-label,
+  .back-watermark, .back-image, .back-footer, .expiry-label {
+    position: absolute;
+    max-width: 100%;
+  }
+
+  .logo { top: 12px; left: 20px; width: 100px; z-index: 2; }
+  .angel { top: 48px; right: 30px; width: 95px; z-index: 2; }
+  .watermark { top: 58px; right: 20px; width: 115px; opacity: 0.7; z-index: 1; }
+  .member-since-label { bottom: 50px; right: 48px; width: 35px; z-index: 2; }
+
+  .member-name, .member-topic, .member-year,
+  .member-id, .member-expiry {
+    position: absolute;
+    font-family: 'typewriter', sans-serif;
+    color: #fff;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+    font-weight: bold;
+    z-index: 3;
+  }
+
+  .member-name { top: 130px; left: 15px; font-size: 8px; }
+  .member-topic { top: 125px; left: 15px; font-size: 5px; color: #f0f0f0; }
+  .member-year { bottom: 15px; right: 15px; font-size: 12px; }
+
+  .back-watermark { top: 100px; left: 0; width: 100%; height: 40px; opacity: 0.7; z-index: 1; }
+  .back-image { top: 30px; right: 20px; width: 60px; z-index: 2; }
+  .back-footer { bottom: 5px; left: 10px; width: 40%; z-index: 2; }
+  .expiry-label { bottom: 30px; left: 15px; width: 30px; z-index: 2; }
+  .member-id { bottom: 55px; right: 15px; font-size: 12px; }
+  .member-expiry { bottom: 15px; right: 15px; font-size: 4px; }
+
+  /* Card benefits styling */
+  .card-benefits {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.8s ease;
+    text-align: left;
+    margin-top: 30px;
+    padding: 15px;
+    background: rgba(0, 0, 0, 0.8);
+    border-radius: 8px;
+    color: white;
+    font-family: 'typewriter', sans-serif;
+  }
+
+  .card-benefits.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .card-benefits h2 {
+    text-align: center;
+    color: #f8f8f8;
+    border-bottom: 1px solid #444;
+    padding-bottom: 8px;
+    margin-top: 0;
+  }
+
+
+
+  /* Member info container styling */
+  .member-info-container {
+    margin-top: 15px;
+    padding: 15px;
+    background: rgba(0,0,0,0.7);
+    border-radius: 8px;
+    font-family: 'typewriter', sans-serif, #000;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.8);
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.5s ease;
+  }
+  
+  .member-info-container.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  
+  .member-card {
+    text-align: center;
+  }
+  
+  .member-card h2 {
+    color: #333;
+    margin-top: 0;
+    margin-bottom: 10px;
+  }
+  
+  .member-card p {
+    color: #555;
+    margin: 5px 0;
+    font-size: 14px;
+  }
+  
+  /* Message for users who need to log in */
+  .login-message {
+    text-align: center;
+    padding: 10px;
+    margin-top: 20px;
+    background: #000000;  /* Changed to black */
+    color: #ffffff; 
+    border-radius: 8px;
+    
+  }
+  
+  .login-message a {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 8px;
+    background: #FC0;
+    color: #fff;
+    text-decoration: none;
+    border-radius: 4px;
+    font-weight: bold;
+  }
+    .login-message p {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 8px 15px;
+    background: #000;
+    color: #fff;
+    text-decoration: none;
+    border-radius: 4px;
+    font-weight: bold;
+  }
+</style>
+<!-- Add this before your existing script -->
+<script>
+  var customerData = {
+    name: {% if customer %}{{ customer.name | json }}{% else %}null{% endif %},
+    email: {% if customer %}{{ customer.email | json }}{% else %}null{% endif %},
+    created_at: {% if customer %}{{ customer.created_at | json }}{% else %}null{% endif %},
+    id: {% if customer %}{{ customer.id | json }}{% else %}null{% endif %},
+    orders_count: {% if customer %}{{ customer.orders_count | json }}{% else %}0{% endif %},
+    first_name: {% if customer %}{{ customer.first_name | json }}{% else %}null{% endif %}
+  };
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Track if we've completed a full flip
+  let flippedOnce = false;
+
+  // Handle both scroll and click events for the card
+  window.addEventListener('scroll', handleCardAnimation);
+  document.getElementById('memberCard').addEventListener('click', toggleCard);
+
+  // Check for logged-in customer and display info
+  checkCustomerLogin();
+
+  function handleCardAnimation() {
+    const card = document.getElementById('memberCard');
+    const cardContainer = document.querySelector('.card-container');
+    const benefits = document.querySelector('.card-benefits');
+    const scrollY = window.scrollY;
+    const scrollThreshold = 400; // Threshold for maximum rotation
+    
+    // Calculate rotation with a more controlled curve
+    // Map scrollY from 0-scrollThreshold to 0-180 degrees (just half rotation)
+    const progress = Math.min(scrollY / scrollThreshold, 1);
+    const rotation = progress * 360;
+    
+    // Only rotate if we haven't flipped once, or we're scrolling back to start
+    if (!flippedOnce || scrollY < 50) {
+      card.style.transform = `rotateY(${rotation}deg)`;
+    }
+    
+    // Track if we've completed a rotation
+    if (rotation >= 175 && !flippedOnce) {
+      flippedOnce = true;
+      
+      // Show benefits after a slight delay
+      setTimeout(() => {
+        benefits.classList.add('visible');
+        // Also show member info when card is flipped
+        document.getElementById('member-info').classList.add('visible');
+      }, 500);
+    }
+    
+    // Reset tracking when scrolled back to top
+    if (scrollY < 70) {
+      flippedOnce = false;
+      benefits.classList.remove('visible');
+      document.getElementById('member-info').classList.remove('visible');
+    }
+    
+    // Activate shine effect
+    if (scrollY > 40) {
+      cardContainer.classList.add('scroll-active');
+    } else {
+      cardContainer.classList.remove('scroll-active');
+    }
+  }
+
+  // Allow card to be flipped by clicking too
+  function toggleCard() {
+    const card = document.getElementById('memberCard');
+    const benefits = document.querySelector('.card-benefits');
+    const memberInfo = document.getElementById('member-info');
+    
+    // If already flipped (showing back), flip to front
+    if (card.style.transform === 'rotateY(180deg)') {
+      card.style.transform = 'rotateY(0deg)';
+      flippedOnce = false;
+      benefits.classList.remove('visible');
+      memberInfo.classList.remove('visible');
+    } 
+    // If showing front, flip to back
+    else {
+      card.style.transform = 'rotateY(180deg)';
+      flippedOnce = true;
+      
+      // Show benefits after a slight delay
+      setTimeout(() => {
+        benefits.classList.add('visible');
+        memberInfo.classList.add('visible');
+      }, 500);
+    }
+  }
+
+// Check if customer is logged in and display information
+function checkCustomerLogin() {
+  // Try to access the customerData variable that would be declared in the template
+  if (typeof window.customerData !== 'undefined' && window.customerData && window.customerData.name) {
+    displayCustomerInfo(window.customerData);
+    return;
+  }
+  
+  // First fallback: Check if Liquid tags were properly replaced
+  const memberNameElement = document.querySelector('.member-name');
+  const memberYearElement = document.querySelector('.member-year');
+  
+  // Check if the Liquid tags were replaced (indicating customer is logged in)
+  if (memberNameElement && 
+      memberNameElement.innerText && 
+      memberNameElement.innerText !== '{{ customer.name }}') {
+    
+    // Get customer data from the DOM
+    const customerData = {
+      name: memberNameElement.innerText,
+      // Try to get year from the rendered DOM element
+      created_at: memberYearElement ? memberYearElement.innerText : new Date().getFullYear()
+    };
+    
+    // Display the information we have
+    displayCustomerInfo(customerData);
+    return;
+  }
+  
+  // Second fallback: Try to access Shopify customer object
+  if (typeof Shopify !== 'undefined' && Shopify.customer) {
+    displayCustomerInfo(Shopify.customer);
+    return;
+  }
+  
+  // Third fallback: Check if customer object is directly available
+  if (typeof customer !== 'undefined' && customer) {
+    displayCustomerInfo(customer);
+    return;
+  }
+  
+  // Fourth fallback: Try Shopify's Customer section data if available
+  if (typeof CustomerSectionData !== 'undefined' && CustomerSectionData) {
+    displayCustomerInfo(CustomerSectionData);
+    return;
+  }
+  
+  // If we've reached this point, the user might not be logged in
+  // Show login message without making it immediately visible
+  showLoginMessage();
+}
+
+function showLoginMessage() {
+  const memberInfoElement = document.getElementById('member-info');
+  if (memberInfoElement) {
+    memberInfoElement.innerHTML = `
+      <div class="login-message">
+        <p>To view your membership card details, please log in to your account.</p>
+        <a href="/account/login">Log In</a>
+      </div>
+    `;
+  }
+}
+
+  // Display customer information
+  function displayCustomerInfo(customerInfo) {
+    const memberInfoElement = document.getElementById('member-info');
+    if (memberInfoElement) {
+      // Extract first name from full name or use fallback
+      let firstName = 'Member';
+      if (customerInfo.first_name) {
+        firstName = customerInfo.first_name;
+      } else if (customerInfo.name && customerInfo.name.includes(' ')) {
+        firstName = customerInfo.name.split(' ')[0];
+      } else if (customerInfo.name) {
+        firstName = customerInfo.name;
+      }
+      
+      // Try to get email or use placeholder
+      const email = customerInfo.email || 'Member Account';
+      
+      // Try to get registration date and format it
+      let memberSince = 'N/A';
+      if (customerInfo.created_at) {
+        try {
+          memberSince = new Date(customerInfo.created_at).toLocaleDateString();
+        } catch (e) {
+          memberSince = customerInfo.created_at;
+        }
+      }
+      
+      // Get order count if available
+      const orders = customerInfo.orders_count || '0';
+      
+      memberInfoElement.innerHTML = `
+        <div class="member-card">
+          <h2>Welcome, ${firstName}!</h2>
+          <p>Account: ${email}</p>
+          <p>Member since: ${memberSince}</p>
+          <p>Orders: ${orders}</p>
+        </div>
+      `;
+    }
+  }
+});
+</script>

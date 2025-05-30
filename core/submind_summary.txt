@@ -1,0 +1,426 @@
+all of it 
+
+from core.memory import MemoryEngine
+from core.chunker import smart_chunk
+from core.injector import inject_memory
+from storage.store import save_memory, load_memory
+import time
+from core.semantic_score import calculate_semantic_similarity
+
+def normalize_scores(memory_entries):
+    # Normalize the scores of memories by adjusting for their age
+    current_time = time.time()
+    for entry in memory_entries:
+        age = current_time - entry.created_at
+        decay_factor = 0.99 ** (age / 3600)  # Decay per hour, adjust as needed
+        entry.score *= decay_factor  # Apply decay to the score
+
+    return memory_entries
+
+def main():
+    # Initialize the memory engine
+    memory = MemoryEngine()
+
+    # Define important tags that should boost relevance
+    important_tags = ["goal", "priority", "user_pref"]
+
+    # Example entries with and without tags
+    entries = [
+        ("OpenAI develops artificial intelligence for the benefit of humanity.", ["tech"]),
+        ("Token efficiency and relevance scoring are crucial to optimize memory use across contexts.", ["priority"]),
+        ("This memory contains a core user preference.", ["user_pref"]),
+        ("This is just some unrelated trivia.", ["trivia"]),
+        ("Remember to focus on building Submind into a working system.", ["goal"]),
+    ]
+
+    # Add chunks to memory
+    for text, tags in entries:
+        chunks = smart_chunk(text, max_tokens=30)
+        for chunk in chunks:
+            memory.add(chunk, tags=tags)
+
+    # Update scores with tag boosting
+    for entry in memory.get_all():
+        memory.update_memory_score(entry, important_tags=important_tags)
+
+    # Save to SQLite database
+    save_memory(memory.get_all())
+
+    # Load the memory entries back from SQLite
+    loaded_entries = load_memory()
+
+    # Normalize scores (apply age-based decay)
+    loaded_entries = normalize_scores(loaded_entries)
+
+    # Prepare a prompt for injection
+    user_prompt = "Why is token efficiency important in AI?"
+
+    # Inject memory into prompt
+    injected = inject_memory(loaded_entries, user_prompt, token_budget=500, score_threshold=0.08)
+
+    print("\n--- Injected Prompt ---\n")
+    print(injected)
+
+    # Optionally, print out loaded entries for verification
+    print("\n--- Loaded Memory Entries ---\n")
+    for entry in loaded_entries:
+        print(f"Text: {entry.text} | Score: {entry.score:.2f} | Created At: {entry.created_at} | Usage Count: {entry.usage_count} | Tags: {entry.tags}")
+
+
+
+if __name__ == "__main__":
+    main()
+
+import sys
+sys.path.append(".")
+
+from storage.store import backfill_text_hashes
+
+backfill_text_hashes()  # Fills missing text_hash fields
+
+
+import time
+from core.chunker import smart_chunk
+
+class MemoryEntry:
+    def __init__(self, text, score=0.0, created_at=None, usage_count=0, tags=None):
+        self.text = text
+        self.score = score
+        self.created_at = created_at or time.time()  # Default to current time if None
+        self.usage_count = usage_count
+        self.tags = tags or []
+        self.relevance_score = 0.5  # Relevance gets updated with usage/importance
+
+class MemoryEngine:
+    def __init__(self, max_chunk_tokens=200):
+        self.memory = []
+        self.max_chunk_tokens = max_chunk_tokens
+
+    def add(self, text, tags=None):
+        chunks = smart_chunk(text, max_tokens=self.max_chunk_tokens)
+        for chunk in chunks:
+            entry = MemoryEntry(chunk, tags)
+            entry.engine = self  # ← attach engine for updates
+            self.memory.append(entry)
+
+    def get_all(self):
+        return self.memory
+
+    def clear(self):
+        self.memory = []
+
+    def update_memory_score(self, entry, relevance_factor=0.2, decay_rate=0.01, min_score=0.05, tag_boost=0.1, important_tags=None):
+        """
+        Updates memory score based on usage, decay over time, and tag relevance.
+        """
+        if important_tags is None:
+            important_tags = []
+
+        entry.usage_count += 1
+
+        time_elapsed = (time.time() - entry.created_at) / 60
+        decay = decay_rate * time_elapsed
+
+        # Base relevance update
+        entry.relevance_score += relevance_factor
+
+        # Boost relevance if entry has important tags
+        if any(tag in entry.tags for tag in important_tags):
+            entry.relevance_score += tag_boost
+
+        entry.score = max(min_score, entry.relevance_score - decay)
+
+    def retrieve(self, top_k=5):
+        return sorted(self.memory, key=lambda x: (x.score, x.created_at), reverse=True)[:top_k]
+
+    def update_scores(self):
+        for entry in self.memory:
+            self.update_memory_score(entry, important_tags=["goal", "user_pref", "priority"])
+
+
+Chunker.py
+
+from core.tokenizer import count_tokens
+import nltk
+
+def smart_chunk(text, max_tokens=200):
+    sentences = nltk.sent_tokenize(text)
+    chunks = []
+    current_chunk = ""
+
+    for sentence in sentences:
+        temp_chunk = current_chunk + " " + sentence if current_chunk else sentence
+        if count_tokens(temp_chunk) <= max_tokens:
+            current_chunk = temp_chunk
+        else:
+            if current_chunk:
+                chunks.append(current_chunk.strip())
+            current_chunk = sentence
+
+    if current_chunk:
+        chunks.append(current_chunk.strip())
+
+    return chunks
+
+
+injector.py
+import time
+from core.tokenizer import count_tokens
+from core.semantic_score import calculate_semantic_similarity
+
+# New normalize_scores function
+def normalize_scores(memory_entries, time_decay_factor=0.1, current_time=None):
+    """
+    Normalize memory scores over time so that older memories don't become irrelevant.
+    """
+    if current_time is None:
+        current_time = time.time()  # Default to current time if not provided
+
+    for entry in memory_entries:
+        # Calculate the age of the memory (in seconds)
+        age = current_time - entry.created_at
+        
+        # Apply a time decay to the score (lower score for older memories)
+        # Time decay can be adjusted based on how quickly you want older memories to lose relevance
+        time_decay_score = 1 / (1 + time_decay_factor * age)
+
+        # Adjust score based on time decay
+        entry.score *= time_decay_score
+
+    return memory_entries
+from core.semantic_score import calculate_semantic_similarity
+
+def calculate_relevance_score(memory_text, prompt):
+    """
+    Calculate the relevance score of a memory entry based on semantic similarity to the user prompt.
+    Debugging added to check similarity scores.
+
+    Args:
+    - memory_text (str): The text from memory to compare.
+    - prompt (str): The user input prompt.
+
+    Returns:
+    - score (float): The relevance score based on cosine similarity.
+    """
+    # Get similarity scores between the memory text and the prompt
+    similarity_scores = calculate_semantic_similarity([memory_text], prompt)
+
+    # Debugging: Check the score
+    print(f"Relevance score for memory: '{memory_text[:30]}...': {similarity_scores}")
+
+    # Return the first score (since we only passed one memory_text)
+    return similarity_scores[0] if similarity_scores else 0.0
+
+def inject_memory(memory_entries, user_prompt, token_budget=500, score_threshold=0.08):
+    # Simulate older memory for testing decay (remove this in production)
+    for entry in memory_entries:
+        entry.created_at -= 3600  # 1 hour ago
+
+    # Update scores with decay if engine is attached
+    if hasattr(memory_entries[0], "__class__") and hasattr(memory_entries[0], "engine"):
+        memory_entries[0].engine.update_scores()
+        for entry in memory_entries:
+            print(f"[DEBUG] Text: {entry.text[:30]}... | Score: {entry.score:.2f} | Age: {(time.time() - entry.created_at)/60:.2f} min")
+
+    # Calculate prompt similarity relevance using semantic scoring
+    for entry in memory_entries:
+        entry.score = calculate_relevance_score(entry.text, user_prompt)
+        if hasattr(entry, "engine"):
+            entry.engine.update_memory_score(entry)
+
+    # Sort memory entries by score and recency (newer memories first)
+    sorted_entries = sorted(memory_entries, key=lambda m: (m.score, m.created_at), reverse=True)
+
+    injected = []
+    total_tokens = 0
+
+    # Loop through sorted entries and add them until the token budget is exhausted
+    for entry in sorted_entries:
+        if entry.score < score_threshold:  # Filter out low-relevance entries
+            continue
+
+        entry_tokens = count_tokens(entry.text)
+        if total_tokens + entry_tokens > token_budget:
+            break  # Stop when we hit the token budget
+
+        # Add entry to injected prompt and update token count
+        injected.append(entry.text)
+        total_tokens += entry_tokens
+
+    # Return the final injected prompt (combined entries)
+    return "\n".join(injected)
+
+
+
+token_filter.py
+from core.tokenizer import count_tokens
+
+def filter_by_token_limit(entries, max_tokens):
+    selected = []
+    total = 0
+    for e in sorted(entries, key=lambda x: -e.score):
+        tokens = count_tokens(e.text)
+        if total + tokens > max_tokens:
+            break
+        selected.append(e)
+        total += tokens
+    return selected
+
+
+
+tokenizer.py
+import tiktoken
+
+encoding = tiktoken.get_encoding("cl100k_base")  # GPT-3.5/4
+
+def count_tokens(text):
+    return len(encoding.encode(text))
+
+
+store.py 
+
+import sqlite3
+import os
+import json
+import hashlib
+from core.memory import MemoryEntry
+
+DB_PATH = "memory.db"
+
+def get_connection():
+    return sqlite3.connect(DB_PATH)
+
+def init_db():
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(''' 
+    CREATE TABLE IF NOT EXISTS memory_entries (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        text TEXT NOT NULL,
+        score REAL DEFAULT 0.0,
+        created_at REAL,
+        updated_at REAL,
+        usage_count INTEGER DEFAULT 0,
+        tags TEXT,
+        version INTEGER DEFAULT 1,
+        text_hash TEXT
+    );
+    ''')
+
+    cursor.execute(''' 
+    CREATE TABLE IF NOT EXISTS memory_metadata (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        key TEXT UNIQUE NOT NULL,
+        value TEXT,
+        created_at REAL
+    );
+    ''')
+
+    conn.commit()
+    conn.close()
+
+def normalize_text(text):
+    return ' '.join(text.strip().lower().split())
+
+def hash_text(text):
+    normalized = normalize_text(text)
+    return hashlib.sha256(normalized.encode('utf-8')).hexdigest()
+
+def save_memory(entries):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    for e in entries:
+        text_hash = hash_text(e.text)
+        cursor.execute('SELECT id FROM memory_entries WHERE text_hash = ?', (text_hash,))
+        existing_entry = cursor.fetchone()
+
+        if existing_entry:
+            print(f"Skipping existing entry: {e.text[:30]}...")
+            continue
+
+        tags_json = json.dumps(e.tags)
+
+        cursor.execute(''' 
+        INSERT INTO memory_entries (text, score, created_at, updated_at, usage_count, tags, text_hash)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (e.text, e.score, e.created_at, e.created_at, e.usage_count, tags_json, text_hash))
+
+    conn.commit()
+    conn.close()
+
+def load_memory():
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('SELECT text, score, created_at, usage_count, tags FROM memory_entries')
+    rows = cursor.fetchall()
+    conn.close()
+
+    entries = []
+    for row in rows:
+        tags = json.loads(row[4])
+        score = float(row[1])
+        e = MemoryEntry(
+            text=row[0],
+            score=score,
+            created_at=row[2],
+            usage_count=row[3],
+            tags=tags
+        )
+        entries.append(e)
+
+    return entries
+
+def backfill_text_hashes():
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT id, text FROM memory_entries WHERE text_hash IS NULL')
+    rows = cursor.fetchall()
+
+    for row in rows:
+        entry_id, text = row
+        h = hash_text(text)
+        cursor.execute('UPDATE memory_entries SET text_hash = ? WHERE id = ?', (h, entry_id))
+
+    conn.commit()
+    conn.close()
+
+
+semantic_score.py
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
+def calculate_semantic_similarity(texts, query):
+    """
+    Calculate the semantic similarity between a list of texts and a query using cosine similarity.
+
+    Args:
+    - texts (list of str): List of memory entries (texts).
+    - query (str): The user input prompt to compare against.
+
+    Returns:
+    - similarities (list): A list of similarity scores between the query and each text.
+    """
+    # Combine all texts with the query into one corpus
+    corpus = texts + [query]
+    
+    # Vectorize the texts and the query
+    vectorizer = TfidfVectorizer()
+    tfidf_matrix = vectorizer.fit_transform(corpus)
+    
+    # Extract the query vector (last vector in the matrix)
+    query_vec = tfidf_matrix[-1]
+    
+    # Extract the text vectors (all except the last one)
+    text_vecs = tfidf_matrix[:-1]
+    
+    # Compute the cosine similarity between the query and each text
+    similarities = cosine_similarity(query_vec, text_vecs).flatten()
+    
+    # Debugging: Print similarity scores
+    print(f"Similarity scores for query: {query}")
+    print(similarities)
+    
+    return similarities
